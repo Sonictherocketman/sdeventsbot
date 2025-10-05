@@ -12,7 +12,9 @@ from bs4 import BeautifulSoup
 import httpx
 
 
-USER_AGENT = 'sdmusiceventsbot@mastodon.social (Music Events Bot) v1.0'
+USER_AGENT = 'sdeventsbot@mastodon.social (Events Bot) v1.0'
+
+TAG_SAFE = 'abcdefghijklmnopqrstuvwxyz_1234567890'
 
 
 logging.basicConfig(
@@ -34,7 +36,7 @@ class Settings:
     reader_event_url_template: str
     n: int = 1
     cache_filename: str = 'cache.json'
-    extra_hashtags: str = '#sandiegolivemusic #sandiego #livemusic'
+    extra_hashtags: str = '#sandiegoevents #sandiego'
 
 
 @dataclass
@@ -100,13 +102,24 @@ def get_events(soup, settings):
             for filter_element in el.find_all('a', attrs={'class': 'event-type'})
         ]
 
+        location = (
+            place_element.get_text().strip()
+            if place_element else
+            None
+        )
+
+        tags = [
+            ''.join(c for c in tag if c.lower() in TAG_SAFE)
+            for tag in tags
+        ]
+
         return Event(
             title=title_element.get_text().strip(),
             url=cleaned_url,
-            location=place_element.get_text().strip(),
+            location=location,
             date=date,
             time=time_element.get_text().strip(),
-            tags=[tag for tag in tags if tag != 'music'],
+            tags=tags,
         )
 
     return [make_event(el, date) for el in event_elements]
@@ -145,7 +158,7 @@ def get_cache(settings: Settings):
 
 def set_cache(cache: Cache, settings: Settings):
     with open(settings.cache_filename, 'w') as f:
-        return json.dump(cache.__dict__, f)
+        return json.dump(cache.__dict__, f, indent=2)
 
 
 def get_settings():
